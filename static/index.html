@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Payment Fraud Detection</title>
+<style>
+  :root { --navy:#0b3a5e; --ink:#1b2733; --mute:#5d6b78; --line:#d5dde5; --bg:#f1f3f5; --card:#fff;
+          --ok:#1e7f4f; --okbg:#e3f3ea; --bad:#b3261e; --badbg:#fbe4e2; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 Georgia, "Times New Roman", serif; }
+  header { background:var(--navy); color:#fff; padding:28px 24px; }
+  header h1 { margin:0; font-size:1.7rem; }
+  header p { margin:4px 0 0; opacity:.8; font-family:system-ui, sans-serif; font-size:.95rem; }
+  main { max-width:1080px; margin:0 auto; padding:24px; display:grid; gap:24px; grid-template-columns:1fr 1fr; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:6px; padding:20px; }
+  section.wide { grid-column:1 / -1; }
+  h2 { margin:0 0 14px; font-size:1.15rem; color:var(--navy); }
+  label { display:block; font:600 .85rem system-ui, sans-serif; margin:10px 0 4px; color:var(--mute); }
+  input, select { width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:4px; font:1rem system-ui, sans-serif; }
+  input:focus, select:focus, button:focus-visible { outline:2px solid var(--navy); outline-offset:1px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:0 14px; }
+  .presets { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
+  button { font:600 .9rem system-ui, sans-serif; padding:9px 14px; border-radius:4px; cursor:pointer; border:1px solid var(--navy); background:#fff; color:var(--navy); }
+  button.primary { background:var(--navy); color:#fff; width:100%; margin-top:16px; padding:12px; font-size:1rem; }
+  #result { min-height:220px; display:flex; align-items:center; justify-content:center; text-align:center; color:var(--mute); }
+  .verdict { width:100%; padding:22px; border-radius:6px; }
+  .verdict.ok { background:var(--okbg); color:var(--ok); }
+  .verdict.bad { background:var(--badbg); color:var(--bad); }
+  .verdict h3 { margin:0; font-size:1.8rem; }
+  .verdict p { margin:6px 0 0; font-family:system-ui, sans-serif; color:var(--ink); }
+  .bar { height:12px; background:#e6ebf0; border-radius:6px; overflow:hidden; margin:16px 0 4px; }
+  .bar > div { height:100%; background:currentColor; transition:width .4s; }
+  table { width:100%; border-collapse:collapse; font:.9rem system-ui, sans-serif; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); }
+  th { color:var(--mute); font-weight:600; }
+  tr.best td { background:var(--okbg); font-weight:600; }
+  .scroll { overflow-x:auto; }
+  .err { color:var(--bad); font-family:system-ui, sans-serif; }
+  @media (max-width:800px) { main { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>AI-Powered Online Payment Fraud Detection</h1>
+  <p>Enter a transaction and the model decides whether to approve it or block it.</p>
+</header>
+
+<main>
+  <section>
+    <h2>Transaction details</h2>
+    <div class="presets">
+      <button type="button" data-preset="normal">Everyday payment</button>
+      <button type="button" data-preset="transfer">Regular transfer</button>
+      <button type="button" data-preset="drain">Account drained</button>
+      <button type="button" data-preset="cashout">Cash-out drain</button>
+    </div>
+    <div class="grid2">
+      <div><label for="type">Type</label>
+        <select id="type"><option>PAYMENT</option><option>TRANSFER</option><option>CASH_OUT</option><option>CASH_IN</option><option>DEBIT</option></select></div>
+      <div><label for="step">Time (step, hours)</label><input id="step" type="number" min="1" value="1"></div>
+      <div><label for="amount">Amount</label><input id="amount" type="number" min="0" step="any" value="0"></div>
+      <div></div>
+      <div><label for="oldbalanceOrg">Sender balance before</label><input id="oldbalanceOrg" type="number" min="0" step="any" value="0"></div>
+      <div><label for="newbalanceOrig">Sender balance after</label><input id="newbalanceOrig" type="number" min="0" step="any" value="0"></div>
+      <div><label for="oldbalanceDest">Receiver balance before</label><input id="oldbalanceDest" type="number" min="0" step="any" value="0"></div>
+      <div><label for="newbalanceDest">Receiver balance after</label><input id="newbalanceDest" type="number" min="0" step="any" value="0"></div>
+    </div>
+    <button class="primary" id="check">Check transaction</button>
+  </section>
+
+  <section>
+    <h2>Result</h2>
+    <div id="result">Fill in a transaction or pick an example, then check it.</div>
+  </section>
+
+  <section class="wide">
+    <h2>Model comparison</h2>
+    <div class="scroll"><table id="metrics"><tr><td>Loading...</td></tr></table></div>
+  </section>
+
+  <section class="wide">
+    <h2>Recent checks</h2>
+    <div class="scroll"><table id="history"><tr><td>No transactions checked yet.</td></tr></table></div>
+  </section>
+</main>
+
+<script>
+const FIELDS = ["type","step","amount","oldbalanceOrg","newbalanceOrig","oldbalanceDest","newbalanceDest"];
+const PRESETS = {
+  normal:   {type:"PAYMENT",  step:10,  amount:9839.64, oldbalanceOrg:170136, newbalanceOrig:160296.36, oldbalanceDest:0,     newbalanceDest:0},
+  transfer: {type:"TRANSFER", step:215, amount:50000,   oldbalanceOrg:60000,  newbalanceOrig:10000,     oldbalanceDest:0,     newbalanceDest:50000},
+  drain:    {type:"TRANSFER", step:1,   amount:250000,  oldbalanceOrg:250000, newbalanceOrig:0,         oldbalanceDest:0,     newbalanceDest:0},
+  cashout:  {type:"CASH_OUT", step:12,  amount:181000,  oldbalanceOrg:181000, newbalanceOrig:0,         oldbalanceDest:21182, newbalanceDest:0},
+};
+const $ = id => document.getElementById(id);
+const fmt = n => Number(n).toLocaleString(undefined, {maximumFractionDigits:2});
+
+document.querySelectorAll("[data-preset]").forEach(b => b.onclick = () => {
+  const p = PRESETS[b.dataset.preset];
+  FIELDS.forEach(f => $(f).value = p[f]);
+  check();
+});
+$("check").onclick = check;
+
+async function check() {
+  const body = {};
+  FIELDS.forEach(f => body[f] = f === "type" ? $(f).value : Number($(f).value));
+  body.step = Math.round(body.step);
+  try {
+    const res = await fetch("/predict", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+    if (!res.ok) throw new Error("check that all values are valid numbers");
+    show(await res.json());
+    loadHistory();
+  } catch (e) {
+    $("result").innerHTML = `<span class="err">Could not check the transaction: ${e.message}</span>`;
+  }
+}
+
+function show(r) {
+  const bad = r.prediction === 1, pct = (r.fraud_probability * 100).toFixed(1);
+  $("result").innerHTML = `
+    <div class="verdict ${bad ? "bad" : "ok"}">
+      <h3>${bad ? "Fraudulent (1)" : "Legitimate (0)"}</h3>
+      <div class="bar"><div style="width:${pct}%"></div></div>
+      <p>Fraud probability ${pct}% &middot; Risk: ${r.risk_level}</p>
+      <p><strong>${r.action}</strong></p>
+    </div>`;
+}
+
+async function loadMetrics() {
+  try {
+    const m = await (await fetch("/metrics")).json();
+    const rows = Object.entries(m.results || {}).map(([name, r]) => `
+      <tr class="${name === m.best_model ? "best" : ""}"><td>${name}${name === m.best_model ? " (deployed)" : ""}</td>
+      <td>${r.precision}</td><td>${r.recall}</td><td>${r.f1}</td><td>${r.roc_auc}</td><td>${r.tp} / ${r.fp} / ${r.fn}</td></tr>`).join("");
+    $("metrics").innerHTML = `<tr><th>Model</th><th>Precision</th><th>Recall</th><th>F1</th><th>ROC-AUC</th><th>TP / FP / FN</th></tr>${rows}`;
+  } catch { $("metrics").innerHTML = "<tr><td>Metrics unavailable.</td></tr>"; }
+}
+
+async function loadHistory() {
+  const h = await (await fetch("/history")).json();
+  if (!h.length) return;
+  $("history").innerHTML = `<tr><th>Time</th><th>Type</th><th>Amount</th><th>Result</th><th>Probability</th></tr>` +
+    h.slice(0, 10).map(x => `<tr><td>${x.time}</td><td>${x.type}</td><td>${fmt(x.amount)}</td>
+      <td style="color:${x.prediction ? "var(--bad)" : "var(--ok)"}">${x.label}</td><td>${(x.fraud_probability*100).toFixed(1)}%</td></tr>`).join("");
+}
+
+loadMetrics();
+loadHistory();
+</script>
+</body>
+</html>

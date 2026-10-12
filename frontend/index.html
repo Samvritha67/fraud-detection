@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1020">
+  <meta name="description" content="A transaction screening dashboard powered by a trained machine learning model.">
+  <title>PayGuard — Fraud intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="/" aria-label="PayGuard home">
+        <span class="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3 27 7v8c0 7.2-4.6 11.7-11 14-6.4-2.3-11-6.8-11-14V7l11-4Z"/><path d="m11 16 3.2 3.2L21.5 12"/></svg></span>
+        <span>payguard<span class="brand-dot">.</span><small>RISK INTELLIGENCE</small></span>
+      </a>
+      <div class="nav-label">WORKSPACE</div>
+      <a class="nav-link active" href="#screening"><span class="nav-icon">◈</span>Transaction screening</a>
+      <a class="nav-link" href="#overview"><span class="nav-icon">▥</span>Overview</a>
+      <a class="nav-link" href="#activity"><span class="nav-icon">◷</span>Recent activity</a>
+      <div class="sidebar-foot">
+        <div class="profile"><div class="avatar">PG</div><div><strong>Risk operations</strong><small>Fraud analyst workspace</small></div><span class="more">•••</span></div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div class="crumb">Workspace <span>/</span> <strong>Transaction screening</strong></div>
+        <div class="topbar-right"><span class="live-dot"></span><span id="service-status">Connecting to model</span><span class="top-date" id="today"></span></div>
+      </header>
+
+      <section class="page-heading" id="screening">
+        <div class="heading-copy"><div class="eyebrow">PAYMENT SECURITY <span>•</span> LIVE SCREENING</div><h1>Transaction intelligence</h1><p>Review transaction signals and make a confident risk decision.</p><a class="heading-link" href="#screening">Open a new screening <span>↗</span></a></div>
+        <div class="heading-visual" aria-hidden="true"><div class="visual-orbit orbit-one"></div><div class="visual-orbit orbit-two"></div><div class="visual-core"><svg viewBox="0 0 56 56"><path d="M28 6 45 12v13c0 11-7 18-17 23C18 43 11 36 11 25V12l17-6Z"/><path d="m20 28 5 5 11-12"/></svg></div><span class="visual-node node-one">01</span><span class="visual-node node-two">✓</span><span class="visual-caption">SIGNAL <b>→</b> DECISION</span></div>
+      </section>
+
+      <section class="overview-grid" id="overview" aria-label="Model overview">
+        <article class="stat-card"><div class="stat-head"><span>Transactions in evaluation</span><span class="stat-icon blue">▤</span></div><strong id="rows-used">—</strong><div class="stat-note">Rows used to train the active model</div></article>
+        <article class="stat-card"><div class="stat-head"><span>Fraud prevalence</span><span class="stat-icon violet">◉</span></div><strong id="fraud-rate">—</strong><div class="stat-note">Share of flagged transactions in data</div></article>
+        <article class="stat-card"><div class="stat-head"><span>Holdout PR-AUC</span><span class="stat-icon green">↗</span></div><strong id="pr-auc">—</strong><div class="stat-note">Precision–recall performance</div></article>
+        <article class="stat-card"><div class="stat-head"><span>Decision threshold</span><span class="stat-icon amber">⌁</span></div><strong id="threshold">—</strong><div class="stat-note">Score at or above this is flagged</div></article>
+      </section>
+
+      <section class="workspace-grid">
+        <article class="panel transaction-panel">
+          <div class="panel-heading"><div><span class="section-kicker">NEW SCREENING</span><h2>Transaction details</h2><p>Enter signals available before transaction authorization.</p></div><span class="form-tag">PRE-AUTH INPUTS</span></div>
+          <div class="sample-row"><span>Try an example</span><button type="button" class="sample-button" data-preset="payment">Typical payment</button><button type="button" class="sample-button" data-preset="transfer">Transfer</button><button type="button" class="sample-button sample-risk" data-preset="fraud">High-risk pattern</button></div>
+          <form id="transaction-form">
+            <div class="form-grid">
+              <label class="field"><span>Transaction type</span><select id="type" name="type"><option>PAYMENT</option><option>TRANSFER</option><option>CASH_OUT</option><option>CASH_IN</option><option>DEBIT</option></select></label>
+              <label class="field"><span>Time step <small>hours</small></span><input id="step" name="step" type="number" min="1" max="10000" value="10" required></label>
+              <label class="field"><span>Transaction amount <small>INR</small></span><div class="input-prefix"><b>₹</b><input id="amount" name="amount" type="number" min="0" step="any" value="9839.64" required></div></label>
+              <div class="field-spacer"></div>
+              <div class="balance-divider"><span>SENDER ACCOUNT</span><i></i></div>
+              <label class="field"><span>Balance before</span><div class="input-prefix"><b>₹</b><input id="oldbalanceOrg" name="oldbalanceOrg" type="number" min="0" step="any" value="170136" required></div></label>
+              <div class="balance-divider"><span>RECEIVER ACCOUNT</span><i></i></div>
+              <label class="field"><span>Balance before</span><div class="input-prefix"><b>₹</b><input id="oldbalanceDest" name="oldbalanceDest" type="number" min="0" step="any" value="0" required></div></label>
+            </div>
+            <div class="form-footer"><span><span class="lock">▣</span> Values are evaluated by the locally hosted model</span><button id="submit-button" class="primary-button" type="submit"><span>Analyze transaction</span><b>→</b></button></div>
+          </form>
+        </article>
+
+        <article class="panel result-panel" aria-live="polite">
+          <div class="panel-heading"><div><span class="section-kicker">SCREENING RESULT</span><h2>Risk assessment</h2></div><span class="result-id" id="result-time">READY</span></div>
+          <div id="result-content" class="empty-result"><div class="scan-illustration"><span>⌕</span><i></i></div><h3>Ready to screen</h3><p>Submit transaction details to see the model’s risk assessment and recommended action.</p><div class="empty-points"><span>✓ &nbsp;Probability score</span><span>✓ &nbsp;Risk classification</span><span>✓ &nbsp;Suggested action</span></div></div>
+        </article>
+      </section>
+
+      <section class="panel activity-panel" id="activity">
+        <div class="panel-heading activity-heading"><div><span class="section-kicker">SESSION LOG</span><h2>Recent screenings</h2></div><span class="activity-count" id="activity-count">0 records</span></div>
+        <div class="table-wrap"><table id="history-table"><thead><tr><th>TIME</th><th>TYPE</th><th>AMOUNT</th><th>ASSESSMENT</th><th>FRAUD PROBABILITY</th></tr></thead><tbody><tr><td colspan="5" class="table-empty">Screened transactions will appear here.</td></tr></tbody></table></div>
+      </section>
+      <footer class="page-footer"><span>PayGuard <b>•</b> PaySim fraud detection</span><span>For demonstration and research use</span></footer>
+    </main>
+  </div>
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>
