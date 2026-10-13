@@ -27,6 +27,7 @@ from features import (POST_AUTH_NUM_COLS, POST_AUTH_RAW_COLS, PRE_AUTH_NUM_COLS,
 
 MODELS_DIR = Path("models")
 SEED = 42
+XGB_RF_SELECTION_TOLERANCE = 0.01
 
 
 def build_pipeline(model, regime: str, scale: bool = False):
@@ -69,7 +70,7 @@ def candidate_models(y_train):
 
 
 def run_regime(name, raw_cols, X_train, y_train, X_val, y_val, X_test, y_test):
-    validation, test, fitted = {}, {}, {}
+    validation, test, fitted, training_seconds = {}, {}, {}, {}
     source_cols = PRE_AUTH_RAW_COLS if name == "pre_authorization" else POST_AUTH_RAW_COLS
     train_x, val_x, test_x = X_train[source_cols], X_val[source_cols], X_test[source_cols]
     for model_name, (estimator, scale) in candidate_models(y_train).items():
@@ -79,11 +80,28 @@ def run_regime(name, raw_cols, X_train, y_train, X_val, y_val, X_test, y_test):
         elapsed = time.perf_counter() - started
         validation[model_name] = evaluate(pipe, val_x, y_val)
         test[model_name] = evaluate(pipe, test_x, y_test)
+        training_seconds[model_name] = elapsed
         test[model_name]["train_seconds"] = round(elapsed, 2)
         fitted[model_name] = pipe
         print(f"{name:18} {model_name:20} validation PR-AUC={validation[model_name]['pr_auc']:.4f}")
     best = max(validation, key=lambda model_name: validation[model_name]["pr_auc"])
-    return {"best_model": best, "validation": validation, "test": test}, fitted[best]
+    selection_rule = "highest validation PR-AUC"
+    xgb_name, forest_name = "XGBoost", "Random Forest"
+    if best == forest_name and xgb_name in validation:
+        score_gap = validation[forest_name]["pr_auc"] - validation[xgb_name]["pr_auc"]
+        if (score_gap <= XGB_RF_SELECTION_TOLERANCE
+                and training_seconds[xgb_name] < training_seconds[forest_name]):
+            best = xgb_name
+            selection_rule = (
+                "XGBoost preferred over Random Forest within "
+                f"{XGB_RF_SELECTION_TOLERANCE:.2f} validation PR-AUC when faster"
+            )
+    return {
+        "best_model": best,
+        "validation": validation,
+        "test": test,
+        "selection_rule": selection_rule,
+    }, fitted[best]
 
 
 def main():
@@ -117,6 +135,10 @@ def main():
         "results": pre_results["test"],
         "regimes": {"pre_authorization": pre_results, "post_authorization": post_results},
         "selection_metric": "validation PR-AUC (average precision)",
+        "selection_policy": (
+            "Choose the highest validation PR-AUC; if Random Forest leads XGBoost "
+            f"by no more than {XGB_RF_SELECTION_TOLERANCE:.2f} and XGBoost trains faster, prefer XGBoost."
+        ),
         "test_set_used_for_selection": False,
     }
     (MODELS_DIR / "metrics.json").write_text(json.dumps(metrics, indent=2))
